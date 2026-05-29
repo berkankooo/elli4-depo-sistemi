@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 import streamlit.components.v1 as components
 
-# --- YENİ EKLENEN FIREBASE MODÜLLERİ ---
 try:
     import firebase_admin
     from firebase_admin import credentials, db
@@ -20,21 +19,24 @@ LOGO_FILE_1 = "logo.jpg"
 TELEGRAM_BOT_TOKEN = "8889188919:AAEGQiGOosknNTq_3QbbIXdi4-IDsU3lXdU"
 TELEGRAM_CHAT_ID = "-1003743777112"
 
-# --- YENİ FIREBASE AYARLARI ---
-FIREBASE_KEY_FILE = "firebase_key.json"
-# LÜTFEN AŞAĞIDAKİ LİNKİ KENDİ FIREBASE VERİTABANI URL'NİZ İLE DEĞİŞTİRİN:
 FIREBASE_DB_URL = "https://elli4-event-depo-default-rtdb.firebaseio.com/"
 
 st.set_page_config(page_title="Elli4 Event - Sakarya Festivali", layout="wide")
 
-# --- FIREBASE BAŞLATMA MOTURU ---
-if FIREBASE_KURULU and os.path.exists(FIREBASE_KEY_FILE) and FIREBASE_DB_URL != "BURAYA_FIREBASE_DATABASE_URL_GELECEK":
+if FIREBASE_KURULU and FIREBASE_DB_URL:
     if not firebase_admin._apps:
-        cred = credentials.Certificate(FIREBASE_KEY_FILE)
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': FIREBASE_DB_URL
-        })
-    FIREBASE_AKTIF = True
+        try:
+            key_dict = json.loads(st.secrets["firebase_key"])
+            cred = credentials.Certificate(key_dict)
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': FIREBASE_DB_URL
+            })
+            FIREBASE_AKTIF = True
+        except Exception as e:
+            st.error(f"Firebase Cloud Güvenlik Kasası Bağlantı Hatası: {e}")
+            FIREBASE_AKTIF = False
+    else:
+        FIREBASE_AKTIF = True
 else:
     FIREBASE_AKTIF = False
 
@@ -61,7 +63,6 @@ def datetime_serializer(obj):
     raise TypeError("Type not serializable")
 
 def veri_yukle():
-    # 1. Öncelik: Firebase'den Güncel Veriyi Çek
     if FIREBASE_AKTIF:
         try:
             ref = db.reference('/')
@@ -78,7 +79,6 @@ def veri_yukle():
         except Exception as e:
             st.warning(f"Sistem bulut bağlantısında sorun yaşadı, yerel yedeğe dönülüyor... Hata: {e}")
             
-    # 2. Öncelik (Firebase Yoksa veya Çöktüyse): Yerel Dosyadan Yükle
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r", encoding="utf-8") as f:
             d = json.load(f)
@@ -94,8 +94,6 @@ def veri_yukle():
 
 def veri_kaydet(data):
     safe_data = json.loads(json.dumps(data, default=datetime_serializer))
-    
-    # 1. Veriyi Buluta (Firebase) Yaz
     if FIREBASE_AKTIF:
         try:
             ref = db.reference('/')
@@ -103,7 +101,6 @@ def veri_kaydet(data):
         except Exception as e:
             st.error(f"Bulut senkronizasyon hatası: {e}")
             
-    # 2. Ne Olur Ne Olmaz Diye Masaüstüne Yedekle (Fiziksel Backup)
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4, default=datetime_serializer)
 
