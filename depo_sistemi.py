@@ -23,14 +23,14 @@ FIREBASE_DB_URL = "https://elli4-event-depo-default-rtdb.firebaseio.com/"
 
 st.set_page_config(page_title="Elli4 Event - Sakarya Festivali", layout="wide")
 
-# --- FIREBASE BAĞLANTI MOTORU (GÜNCELLENDİ) ---
+# --- FIREBASE BAĞLANTI MOTORU (HATASI DÜZELTİLDİ) ---
 FIREBASE_AKTIF = False
 if FIREBASE_KURULU and FIREBASE_DB_URL:
     try:
         # Önce Secrets kasasına erişmeyi deniyoruz
         if "firebase_key" in st.secrets:
-            # Şifreyi direkt bir Python sözlüğü (dict) olarak okuyoruz (json loads'a gerek kalmadan)
-            key_dict = dict(st.secrets["firebase_key"])
+            # Şifreyi metin formatından json formatına doğru şekilde çeviriyoruz (Çözen Satır)
+            key_dict = json.loads(st.secrets["firebase_key"])
             
             if not firebase_admin._apps:
                 cred = credentials.Certificate(key_dict)
