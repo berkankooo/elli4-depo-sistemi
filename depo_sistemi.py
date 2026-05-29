@@ -23,22 +23,24 @@ FIREBASE_DB_URL = "https://elli4-event-depo-default-rtdb.firebaseio.com/"
 
 st.set_page_config(page_title="Elli4 Event - Sakarya Festivali", layout="wide")
 
+# --- FIREBASE BAĞLANTI MOTORU (GÜNCELLENDİ) ---
+FIREBASE_AKTIF = False
 if FIREBASE_KURULU and FIREBASE_DB_URL:
-    if not firebase_admin._apps:
-        try:
-            key_dict = json.loads(st.secrets["firebase_key"])
-            cred = credentials.Certificate(key_dict)
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': FIREBASE_DB_URL
-            })
+    try:
+        # Önce Secrets kasasına erişmeyi deniyoruz
+        if "firebase_key" in st.secrets:
+            # Şifreyi direkt bir Python sözlüğü (dict) olarak okuyoruz (json loads'a gerek kalmadan)
+            key_dict = dict(st.secrets["firebase_key"])
+            
+            if not firebase_admin._apps:
+                cred = credentials.Certificate(key_dict)
+                firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DB_URL})
             FIREBASE_AKTIF = True
-        except Exception as e:
-            st.error(f"Firebase Cloud Güvenlik Kasası Bağlantı Hatası: {e}")
-            FIREBASE_AKTIF = False
-    else:
-        FIREBASE_AKTIF = True
-else:
-    FIREBASE_AKTIF = False
+        else:
+            st.error("Sistem Hatası: 'firebase_key' adlı gizli şifre Streamlit kasasında bulunamadı!")
+            
+    except Exception as e:
+        st.error(f"Bulut Bağlantı Hatası: Lütfen Streamlit Secrets kasasındaki şifrenin eksiksiz kopyalandığından emin olun. Hata detayı: {e}")
 
 def telegram_mesaj_gonder(mesaj):
     if TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_TOKEN != "BOT_TOKENINIZI_BURAYA_YAZIN":
@@ -77,7 +79,7 @@ def veri_yukle():
                 if "supervisors" not in d: d["supervisors"] = {}
                 return d
         except Exception as e:
-            st.warning(f"Sistem bulut bağlantısında sorun yaşadı, yerel yedeğe dönülüyor... Hata: {e}")
+            pass # Bağlantı koparsa veya yavaşlarsa kullanıcıya hissettirme
             
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -99,7 +101,7 @@ def veri_kaydet(data):
             ref = db.reference('/')
             ref.set(safe_data)
         except Exception as e:
-            st.error(f"Bulut senkronizasyon hatası: {e}")
+            st.error(f"Senkronizasyon hatası: İnternet bağlantınızı kontrol edin. {e}")
             
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4, default=datetime_serializer)
